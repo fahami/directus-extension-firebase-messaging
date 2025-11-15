@@ -1,0 +1,43 @@
+{
+	"name": "directus-extension-firebase-messaging",
+	"description": "Directus operation extension for sending push notifications via Firebase Cloud Messaging with support for single/multicast messaging, topics, and dry run validation",
+	"icon": "send",
+	"version": "1.0.0",
+	"license": "MIT",
+	"keywords": [
+		"directus",
+		"directus-extension",
+		"directus-extension-operation"
+	],
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"directus:extension": {
+		"type": "operation",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"source": {
+			"app": "src/app.ts",
+			"api": "src/api.ts"
+		},
+		"host": "^10.10.0"
+	},
+	"scripts": {
+		"build": "directus-extension build",
+		"dev": "directus-extension build -w --no-minify",
+		"link": "directus-extension link",
+		"validate": "directus-extension validate"
+	},
+	"devDependencies": {
+		"@directus/extensions-sdk": "17.0.2",
+		"@types/node": "^24.10.1",
+		"typescript": "^5.9.3",
+		"vue": "^3.5.24"
+	},
+	"dependencies": {
+		"firebase-admin": "^13.6.0"
+	}
+}
