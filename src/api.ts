@@ -1,6 +1,6 @@
 import { defineOperationApi } from '@directus/extensions-sdk';
 import * as admin from 'firebase-admin';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import type { MulticastMessage, BatchResponse } from 'firebase-admin/messaging';
 
 type Options = {
@@ -33,13 +33,27 @@ type OperationResult = {
 
 let firebaseApp: admin.app.App | null = null;
 
-function initializeFirebase(credentialPath: string): admin.app.App {
+function initializeFirebase(credentialInput: string): admin.app.App {
 	if (firebaseApp) {
 		return firebaseApp;
 	}
 
 	try {
-		const serviceAccount = JSON.parse(readFileSync(credentialPath, 'utf8'));
+		let serviceAccount: admin.ServiceAccount;
+
+		// Check if input is a file path or a JSON string
+		if (existsSync(credentialInput)) {
+			// It's a file path
+			serviceAccount = JSON.parse(readFileSync(credentialInput, 'utf8'));
+		} else {
+			// Try to parse as JSON string (direct service account object)
+			try {
+				serviceAccount = JSON.parse(credentialInput);
+			} catch {
+				throw new Error('Credential must be either a valid file path or a JSON string containing service account credentials');
+			}
+		}
+
 		firebaseApp = admin.initializeApp({
 			credential: admin.credential.cert(serviceAccount),
 		});
@@ -118,14 +132,14 @@ export default defineOperationApi<Options>({
 				throw new Error('Recipient type is required');
 			}
 
-			// Get credential path from environment variable
-			const credentialPath = env[options.credentialEnvVar];
-			if (!credentialPath) {
+			// Get credential from environment variable (can be file path or JSON string)
+			const credential = env[options.credentialEnvVar];
+			if (!credential) {
 				throw new Error(`Environment variable ${options.credentialEnvVar} is not set`);
 			}
 
-			// Initialize Firebase
-			const app = initializeFirebase(credentialPath);
+			// Initialize Firebase with either file path or JSON string
+			const app = initializeFirebase(credential);
 			const messaging = admin.messaging(app);
 
 			// Handle different recipient types

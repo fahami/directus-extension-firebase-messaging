@@ -49,6 +49,7 @@ export default defineOperationApp({
 				options: {
 					placeholder: 'GOOGLE_APPLICATION_CREDENTIALS',
 				},
+				note: 'Environment variable containing either a file path to service account JSON or the JSON string itself',
 			},
 			schema: {
 				default_value: 'GOOGLE_APPLICATION_CREDENTIALS',
