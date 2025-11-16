@@ -93,6 +93,9 @@ export default defineOperationApi<Options>({
 			}
 
 			const message = constructMessage(options, options.deviceToken);
+			logger.info('Firebase message constructed:', message);
+			
+			logger.info('Firebase message sending...');
 			const messageId = await messaging.send(message, options.dryRun ?? false);
 
 			if (options.dryRun) {
@@ -111,9 +114,46 @@ export default defineOperationApi<Options>({
 				throw new Error('Maximum 500 tokens allowed per multicast message');
 			}
 
-			const baseMessage = constructMessage(options);
+			// Build message without recipient (tokens will be added separately)
+			const message: any = {};
+
+			// Set notification payload
+			if (options.notificationTitle || options.notificationBody) {
+				message.notification = {
+					title: options.notificationTitle,
+					body: options.notificationBody,
+				};
+			}
+
+			// Set data payload
+			if (options.dataPayload && Object.keys(options.dataPayload).length > 0) {
+				message.data = options.dataPayload;
+			}
+
+			// Set Android config with priority and TTL
+			if (options.priority || options.timeToLive) {
+				message.android = {
+					priority: options.priority === 'high' ? 'high' : 'normal',
+					ttl: options.timeToLive ? options.timeToLive * 1000 : undefined,
+				};
+			}
+
+			// Set APNS config with priority
+			if (options.priority === 'high') {
+				message.apns = {
+					headers: {
+						'apns-priority': '10',
+					},
+					payload: {
+						aps: {
+							contentAvailable: true,
+						},
+					},
+				};
+			}
+
 			const multicastMessage: MulticastMessage = {
-				...baseMessage,
+				...message,
 				tokens: options.deviceTokens,
 			};
 
