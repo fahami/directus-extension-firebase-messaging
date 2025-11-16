@@ -1,211 +1,159 @@
 # Directus Extension: Firebase Cloud Messaging
 
-A Directus operation extension for sending push notifications via Firebase Cloud Messaging (FCM) with support for single device messaging, multicast to multiple devices, topic-based messaging, and dry run validation mode.
+Send push notifications from your Directus workflows using Firebase Cloud Messaging.
 
 ## Features
 
-- **Multiple Recipient Types**: Send to single devices, multiple devices (multicast), or topics
-- **Dry Run Mode**: Validate messages without actually sending them (perfect for testing)
-- **Flexible Configuration**: Configure Firebase credentials via environment variables
-- **Rich Messaging**: Support for notification payloads, data payloads, and platform-specific options
-- **Message Priority**: Set high or normal priority for time-sensitive notifications
-- **Time-to-Live**: Configure how long messages should be kept for offline devices
-- **Comprehensive Error Handling**: Detailed error messages and failed token tracking
+- Send to one device, many devices, or topic subscribers
+- Test mode (dry run) to validate without sending
+- Set notification priority and expiration
+- Custom data payloads
+- Track failed deliveries
 
 ## Installation
 
-1. Install the extension:
+### 1. Get Firebase Credentials
+
+1. Go to [Firebase Console](https://console.firebase.google.com)
+2. Create or select your project
+3. Go to **Project Settings** → **Service Accounts**
+4. Click **Generate New Private Key** and save the JSON file
+
+### 2. Install Extension
+
 ```bash
 npm install directus-extension-firebase-messaging
 ```
 
-2. Set up Firebase:
-   - Create a Firebase project at https://console.firebase.google.com
-   - Generate a service account key (Project Settings > Service Accounts > Generate New Private Key)
-   - Save the JSON file securely on your server
+### 3. Configure Directus
 
-3. Configure environment variable:
+Add to your Directus `.env` file:
+
 ```bash
-# In your .env file
-FIREBASE_CREDENTIAL_PATH=/path/to/your/firebase-service-account.json
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/firebase-credentials.json
 ```
+
+### 4. Restart Directus
+
+Restart your Directus instance to load the extension.
 
 ## Usage
 
-### In Directus Workflows
+1. Go to **Settings → Flows** in Directus
+2. Create or edit a flow
+3. Add the **Firebase Cloud Messaging** operation
+4. Configure:
 
-1. Add the "Firebase Cloud Messaging" operation to your workflow
-2. Configure the operation:
-   - **Credential Environment Variable**: Name of the env var containing the credential file path (default: `FIREBASE_CREDENTIAL_PATH`)
-   - **Recipient Type**: Choose `token`, `tokens`, or `topic`
-   - **Dry Run Mode**: Enable to validate without sending (recommended for testing)
-   - **Device Token(s)**: Provide token(s) based on recipient type
-   - **Notification Title/Body**: Optional notification content
-   - **Data Payload**: Optional custom data as JSON
+   - **Recipient Type**: Who receives the notification
+     - Single Device Token
+     - Multiple Device Tokens (up to 500)
+     - Topic
+   
+   - **Dry Run Mode**: Test without sending (recommended for first setup)
+   
+   - **Notification Title & Body**: Your message
+   
    - **Priority**: Normal or High
-   - **Time to Live**: Seconds to keep message for offline devices
+   
+   - **Data Payload** (optional): Custom data as JSON
 
-### Example: Welcome Notification on User Registration
+## Examples
 
-```
-Trigger: User Created
-↓
-Read Operation: Get user device token
-↓
-Firebase Messaging Operation:
-  - Recipient Type: token
-  - Device Token: {{$last.device_token}}
-  - Notification Title: "Welcome!"
-  - Notification Body: "Thanks for signing up, {{$trigger.first_name}}"
-  - Dry Run: false
-```
+### Welcome Message
 
-### Example: Multicast to Multiple Subscribers
+**Trigger:** When user is created  
+**Action:** Send welcome notification
 
-```
-Trigger: Content Published
-↓
-Read Operation: Get all subscriber tokens
-↓
-Firebase Messaging Operation:
-  - Recipient Type: tokens
-  - Device Tokens: {{$last}}
-  - Notification Title: "New Content Available"
-  - Notification Body: "{{$trigger.title}}"
-  - Priority: high
-  - Dry Run: false
-```
+- Recipient Type: `Single Device Token`
+- Device Token: `{{$trigger.device_token}}`
+- Title: `"Welcome!"`
+- Body: `"Thanks for signing up!"`
 
-### Example: Topic-Based Broadcast
+### Broadcast to Multiple Users
 
-```
-Trigger: Scheduled (cron)
-↓
-Firebase Messaging Operation:
-  - Recipient Type: topic
-  - Topic: "daily-news"
-  - Notification Title: "Daily News Digest"
-  - Notification Body: "Check out today's top stories"
-  - Dry Run: false
-```
+**Trigger:** When content is published  
+**Action:** Notify all subscribers
 
-## Dry Run Mode
+- Recipient Type: `Multiple Device Tokens`
+- Device Tokens: `{{$last.map(s => s.device_token)}}`
+- Title: `"New Content Available"`
+- Priority: `High`
 
-Dry run mode is excellent for:
-- Testing workflow configuration without spamming users
-- Validating token formats and message structure
-- Debugging message construction logic
-- Development and staging environments
+### Daily Notification
 
-When dry run is enabled:
-- Firebase validates the entire message
-- Authentication and credentials are checked
-- Token format is validated
-- No actual notifications are sent
-- Response indicates validation success/failure
+**Trigger:** Scheduled (daily at 9 AM)  
+**Action:** Send to topic subscribers
 
-## Configuration Options
+- Recipient Type: `Topic`
+- Topic Name: `daily-news`
+- Title: `"Daily Digest"`
 
-### Credential Environment Variable
-Name of the environment variable that contains the path to your Firebase service account JSON file.
+## Testing (Dry Run Mode)
+
+Enable **Dry Run Mode** to test your setup without sending real notifications:
+
+- ✅ Validates your message format
+- ✅ Checks Firebase credentials
+- ✅ Verifies device tokens
+- ❌ Does NOT send actual notifications
+
+Perfect for development and testing!
+
+## Options Explained
 
 ### Recipient Types
 
-**Single Token (`token`)**
-- Send to one specific device
-- Requires: `deviceToken` field
+- **Single Device Token**: Send to one user's device
+- **Multiple Device Tokens**: Send to many users (max 500 at once)
+- **Topic**: Broadcast to everyone subscribed to a topic (e.g., "news")
 
-**Multiple Tokens (`tokens`)**
-- Send same message to up to 500 devices
-- Requires: `deviceTokens` array
-- Returns success/failure count and failed tokens
+### Priority
 
-**Topic (`topic`)**
-- Send to all devices subscribed to a topic
-- Requires: `topic` name
-- Devices must be subscribed to the topic via client SDK
+- **Normal**: Standard delivery
+- **High**: Urgent delivery (wakes up sleeping devices)
 
-### Message Configuration
+### Time to Live
 
-**Notification Payload**
-- `notificationTitle`: Visible notification title
-- `notificationBody`: Visible notification message
+How long to keep the notification if the device is offline (default: 28 days)
 
-**Data Payload**
-- Custom key-value pairs sent to your app
-- All values must be strings
-- Available to app even when in background
+### Data Payload
 
-**Priority**
-- `normal`: Standard delivery (default)
-- `high`: Immediate delivery, wakes up sleeping devices
-
-**Time to Live**
-- Seconds to keep message for offline devices
-- Default: 2,419,200 (28 days)
-- Maximum: 2,419,200 (28 days)
-
-## Response Data
-
-The operation returns:
-
+Send custom data to your app:
 ```json
-{
-  "success": true,
-  "messageId": "projects/my-project/messages/0:1234567890",
-  "dryRun": false
-}
+{"orderId": "12345", "action": "view"}
 ```
+Note: All values must be strings
 
-For multicast operations:
+## What You Get Back
 
-```json
-{
-  "success": true,
-  "successCount": 485,
-  "failureCount": 15,
-  "failedTokens": ["token1", "token2", ...],
-  "dryRun": false
-}
-```
+**Single Device or Topic:**
+- Message ID (undefined in dry run mode)
 
-## Error Handling
+**Multiple Devices:**
+- Success count
+- Failure count
+- List of failed tokens (if any)
 
-Common errors and solutions:
+## Troubleshooting
 
-**Environment variable not set**
-- Ensure `FIREBASE_CREDENTIAL_PATH` is set in your `.env` file
-- Verify the environment variable name matches your configuration
+**"Could not load credentials" error**
+- Check `GOOGLE_APPLICATION_CREDENTIALS` in your `.env` file
+- Make sure the path to your Firebase JSON file is correct
+- Restart Directus
 
-**Invalid credential file**
-- Check that the JSON file path is correct
-- Verify the service account has FCM Send permission
-- Ensure the JSON file is properly formatted
+**"Invalid token" error**
+- Device tokens expire or become invalid
+- Use dry run mode to test tokens first
 
-**Invalid token format**
-- Tokens must be valid FCM registration tokens
-- Tokens are obtained from client app FCM SDK
-- Use dry run mode to validate tokens
-
-**Topic not found**
-- Ensure devices are subscribed to the topic
-- Topic names are case-sensitive
-- Topics are created automatically when first used
-
-## Security Considerations
-
-- Store service account JSON files outside web-accessible directories
-- Use environment variables to reference credential paths
-- Never commit service account files to version control
-- Restrict file system permissions on credential files
-- Use dry run mode in development environments
+**Messages not received**
+- Check your Firebase Console for delivery status
+- Verify the app has FCM properly configured
+- Make sure notifications aren't blocked on the device
 
 ## Requirements
 
-- Directus ^10.10.0
-- Node.js ^18.0.0 or ^20.0.0
-- Firebase Admin SDK ^12.0.0
-- Valid Firebase project with Cloud Messaging enabled
+- Directus 10.10.0 or higher
+- Firebase project with Cloud Messaging enabled
 
 ## License
 
