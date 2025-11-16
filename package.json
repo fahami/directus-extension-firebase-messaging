@@ -1,9 +1,17 @@
 {
-	"name": "directus-extension-firebase-messaging",
+	"name": "@fahami/directus-extension-firebase-messaging",
 	"description": "Directus operation extension for sending push notifications via Firebase Cloud Messaging with support for single/multicast messaging, topics, and dry run validation",
 	"icon": "send",
 	"version": "1.0.0",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/fahami/directus-extension-firebase-messaging.git"
+	},
+	"publishConfig": {
+		"registry": "https://npm.pkg.github.com",
+		"access": "public"
+	},
 	"keywords": [
 		"directus",
 		"directus-extension",
